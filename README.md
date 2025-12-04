@@ -748,5 +748,3 @@ Vous avez maintenant les compétences pour:
 **Prochaines étapes**: Explorez les règles communautaires Snort, apprenez à optimiser les performances, et expérimentez avec d'autres types d'attaques!
 
 ---
-
-**Bon courage! 🚀**
